@@ -70,6 +70,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #   include "process_midi.h"
 #endif
 
+#ifdef QMK_KEYS_PER_SCAN
+#undef QMK_KEYS_PER_SCAN
+#define QMK_KEYS_PER_SCAN 8
+#endif
+
 #ifdef MATRIX_HAS_GHOST
 extern const uint16_t keymaps[][MATRIX_ROWS][MATRIX_COLS];
 static matrix_row_t get_real_keys(uint8_t row, matrix_row_t rowdata){
