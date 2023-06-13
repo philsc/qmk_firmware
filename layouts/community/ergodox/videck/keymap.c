@@ -29,11 +29,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     KC_PGUP, KC_6,   KC_7,    KC_8,    KC_9,   KC_0,    KC_MINS,
     KC_PGDN, KC_Y,   KC_U,    KC_I,    KC_O,   KC_P,    KC_BSLS,
              KC_H,   KC_J,    KC_K,    KC_L,   KC_SCLN, KC_QUOT,
-    KC_DELT, KC_N,   KC_M,    KC_COMM, KC_DOT, KC_SLSH, TD(TD_R),
+    KC_DEL,  KC_N,   KC_M,    KC_COMM, KC_DOT, KC_SLSH, TD(TD_R),
                      KC_LBRC, KC_RBRC, KC_EQL, KC_RALT, KC_RCTL,
     KC_APP,  KC_ESC,
     KC_INS,
-    KC_SLCK, KC_ENT, KC_SPC
+    KC_SCRL, KC_ENT, KC_SPC
   ),
   [ARROWS] = LAYOUT_ergodox(
     // left hand
@@ -106,7 +106,7 @@ typedef struct
   videck_tap_dance_trigger_t trigger;
 } videck_tap_dance_tuple_t;
 
-static void videck_tap_dance_finished (qk_tap_dance_state_t *state, void *user_data) {
+static void videck_tap_dance_finished (tap_dance_state_t *state, void *user_data) {
   videck_tap_dance_tuple_t *const tuple = (videck_tap_dance_tuple_t *)user_data;
 
   if (state->count == 1) {
@@ -116,7 +116,7 @@ static void videck_tap_dance_finished (qk_tap_dance_state_t *state, void *user_d
   }
 }
 
-static void videck_tap_dance_reset (qk_tap_dance_state_t *state, void *user_data) {
+static void videck_tap_dance_reset (tap_dance_state_t *state, void *user_data) {
   videck_tap_dance_tuple_t *const tuple = (videck_tap_dance_tuple_t *)user_data;
 
   if (state->count == 1) {
@@ -139,7 +139,7 @@ static void videck_caps_trigger (const uint16_t kc) {
     .user_data = (void *)&((videck_tap_dance_tuple_t) { kc1, kc2, double_trigger }),  \
   }
 
-qk_tap_dance_action_t tap_dance_actions[] = {
+tap_dance_action_t tap_dance_actions[] = {
   [TD_L] = ACTION_TAP_DANCE_DOUBLE_TRIGGER(KC_LSFT, KC_CAPS, videck_caps_trigger),
   [TD_R] = ACTION_TAP_DANCE_DOUBLE_TRIGGER(KC_RSFT, KC_CAPS, videck_caps_trigger)
 };

@@ -1,204 +1,115 @@
-/*
-Copyright 2017 Christopher Courtney <drashna@live.com> @drashna
+// Copyright 2020 Christopher Courtney, aka Drashna Jael're  (@drashna) <drashna@live.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
+#pragma once
+#include QMK_KEYBOARD_H
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
-
-#ifndef USERSPACE
-#define USERSPACE
-
-#include "quantum.h"
-
-// Define layer names 
-#define _QWERTY 0
-#define _NUMLOCK 0
-#define _COLEMAK 1
-#define _DVORAK 2
-#define _WORKMAN 3
-#define _MODS 4
-//#define _MISC 5
-#define _NAV 6
-#define _COVECUBE 7
-#define _SYMB 8
-#define _GAMEPAD 9
-#define _DIABLO 10
-#define _MOUS 11
-#define _MACROS 12
-#define _MEDIA 13
-#define _LOWER 14
-#define _RAISE 15
-#define _ADJUST 16
-
-
-//define modifiers
-#define MODS_SHIFT_MASK  (MOD_BIT(KC_LSHIFT)|MOD_BIT(KC_RSHIFT))
-#define MODS_CTRL_MASK  (MOD_BIT(KC_LCTL)|MOD_BIT(KC_RCTRL))
-#define MODS_ALT_MASK  (MOD_BIT(KC_LALT)|MOD_BIT(KC_RALT))
-#define MODS_GUI_MASK  (MOD_BIT(KC_LGUI)|MOD_BIT(KC_RGUI))
-
-#ifndef RGBLIGHT_ANIMATIONS // add "EXTRA_FLADS=-DDRASHNA_SETRGB" to enable this ... but don't
-#define rgblight_set_blue        rgblight_setrgb (0x00,  0x00, 0xFF);
-#define rgblight_set_red         rgblight_setrgb (0xFF,  0x00, 0x00);
-#define rgblight_set_green       rgblight_setrgb (0x00,  0xFF, 0x00);
-#define rgblight_set_orange      rgblight_setrgb (0xFF,  0x80, 0x00);
-#define rgblight_set_teal        rgblight_setrgb (0x00,  0xFF, 0xFF);
-#define rgblight_set_magenta     rgblight_setrgb (0xFF,  0x00, 0xFF);
-#define rgblight_set_yellow      rgblight_setrgb (0xFF,  0xFF, 0x00);
-#define rgblight_set_purple      rgblight_setrgb (0x7A,  0x00, 0xFF);
-#define rgblight_set_white       rgblight_setrgb (0xFF,  0xFF, 0xFF);
-#else
-#define rgblight_set_blue        rgblight_sethsv (0xFF,  0xFF, 0xFF);
-#define rgblight_set_red         rgblight_sethsv (0x00,  0xFF, 0xFF);
-#define rgblight_set_green       rgblight_sethsv (0x78,  0xFF, 0xFF);
-#define rgblight_set_orange      rgblight_sethsv (0x1E,  0xFF, 0xFF);
-#define rgblight_set_teal        rgblight_sethsv (0xB4,  0xFF, 0xFF);
-#define rgblight_set_magenta     rgblight_sethsv (0x12C, 0xFF, 0xFF);
-#define rgblight_set_yellow      rgblight_sethsv (0x3C,  0xFF, 0xFF);
-#define rgblight_set_purple      rgblight_sethsv (0x10E, 0xFF, 0xFF);
-#define rgblight_set_white       rgblight_sethsv (0x00,  0x00, 0xFF);
-#endif // DRASHNA_SETRGB
-
-extern bool is_overwatch;
-extern bool rgb_layer_change;
-
-enum userspace_custom_keycodes {
-  EPRM = SAFE_RANGE, // can always be here
-  VRSN,
-  KC_QWERTY,
-  KC_COLEMAK,
-  KC_DVORAK,
-  KC_WORKMAN,
-  LOWER,
-  RAISE,
-  ADJUST,
-  KC_DIABLO_CLEAR,
-  KC_OVERWATCH,
-  KC_SALT,
-  KC_MORESALT,
-  KC_SALTHARD,
-  KC_GOODGAME,
-  KC_SYMM,
-  KC_JUSTGAME,
-  KC_GLHF,
-  KC_TORB,
-  KC_AIM,
-  KC_C9,
-  KC_GGEZ,
-  KC_MAKE,
-  KC_RESET,
-  KC_RGB_T,
-  KC_SECRET_1,
-  KC_SECRET_2,
-  KC_SECRET_3,
-  KC_SECRET_4,
-  KC_SECRET_5,
-  KC_FXCL,
-  NEW_SAFE_RANGE //use "NEWPLACEHOLDER for keymap specific codes
-};
+#include "eeconfig_users.h"
+#include "keyrecords/wrappers.h"
+#include "keyrecords/process_records.h"
+#include "callbacks.h"
 
 #ifdef TAP_DANCE_ENABLE
-enum {
-  TD_D3_1 = 0,
-  TD_D3_2,
-  TD_D3_3,
-  TD_D3_4
+#    include "keyrecords/tap_dances.h"
+#endif // TAP_DANCE_ENABLE
+#if defined(RGBLIGHT_ENABLE)
+#    include "rgb/rgb_stuff.h"
+#endif
+#if defined(RGB_MATRIX_ENABLE)
+#    include "rgb/rgb_matrix_stuff.h"
+#endif
+#if defined(OLED_ENABLE)
+#    include "oled/oled_stuff.h"
+#endif
+#ifdef SPLIT_KEYBOARD
+#    include "split/transport_sync.h"
+#endif
+#ifdef POINTING_DEVICE_ENABLE
+#    include "pointing/pointing.h"
+#endif
+#ifdef OS_DETECTION_ENABLE
+#    include "os_detection.h"
+#endif
+#ifdef UNICODE_COMMON_ENABLE
+#    include "keyrecords/unicode.h"
+#endif
+
+/* Define layer names */
+enum userspace_layers {
+    _QWERTY             = 0,
+    _NUMLOCK            = 0,
+    FIRST_DEFAULT_LAYER = 0,
+    _COLEMAK_DH,
+    _COLEMAK,
+    _DVORAK,
+    LAST_DEFAULT_LAYER = _DVORAK,
+    _GAMEPAD,
+    _DIABLO,
+    _DIABLOII,
+    _MOUSE,
+    _MEDIA,
+    _LOWER,
+    _RAISE,
+    _ADJUST,
 };
+
+#define _MACROS _MOUSE
+#define _DEFAULT_LAYER_1 FIRST_DEFAULT_LAYER
+#define _DEFAULT_LAYER_2 (FIRST_DEFAULT_LAYER + 1)
+#define _DEFAULT_LAYER_3 (FIRST_DEFAULT_LAYER + 2)
+#define _DEFAULT_LAYER_4 (FIRST_DEFAULT_LAYER + 3)
+#if LAST_DEFAULT_LAYER > (FIRST_DEFAULT_LAYER + 3)
+#    define _DEFAULT_LAYER_2 (FIRST_DEFAULT_LAYER + 4)
+#    define _DEFAULT_LAYER_3 (FIRST_DEFAULT_LAYER + 5)
+#    define _DEFAULT_LAYER_4 (FIRST_DEFAULT_LAYER + 6)
+#    define _DEFAULT_LAYER_2 (FIRST_DEFAULT_LAYER + 7)
+#    if LAST_DEFAULT_LAYER > (FIRST_DEFAULT_LAYER + 7)
+#        define _DEFAULT_LAYER_2 (FIRST_DEFAULT_LAYER + 8)
+#        define _DEFAULT_LAYER_3 (FIRST_DEFAULT_LAYER + 9)
+#        define _DEFAULT_LAYER_4 (FIRST_DEFAULT_LAYER + 10)
+#        define _DEFAULT_LAYER_4 (FIRST_DEFAULT_LAYER + 11)
+#    endif
 #endif
 
-#ifdef TAP_DANCE_ENABLE
-#define KC_D3_1 TD(TD_D3_1)
-#define KC_D3_2 TD(TD_D3_2)
-#define KC_D3_3 TD(TD_D3_3)
-#define KC_D3_4 TD(TD_D3_4)
-#else
-#define KC_D3_1 KC_1
-#define KC_D3_2 KC_2
-#define KC_D3_3 KC_3
-#define KC_D3_4 KC_4
-#endif
+#define DEFAULT_LAYER_1_HSV HSV_CYAN
+#define DEFAULT_LAYER_2_HSV HSV_CHARTREUSE
+#define DEFAULT_LAYER_3_HSV HSV_MAGENTA
+#define DEFAULT_LAYER_4_HSV HSV_GOLDENROD
 
-#define QMK_KEYS_PER_SCAN 8
+#define DEFAULT_LAYER_1_RGB RGB_CYAN
+#define DEFAULT_LAYER_2_RGB RGB_CHARTREUSE
+#define DEFAULT_LAYER_3_RGB RGB_MAGENTA
+#define DEFAULT_LAYER_4_RGB RGB_GOLDENROD
 
-#ifdef RGBLIGHT_ENABLE
-#define RGBLIGHT_SLEEP
-#endif
+bool mod_key_press_timer(uint16_t code, uint16_t mod_code, bool pressed);
+bool mod_key_press(uint16_t code, uint16_t mod_code, bool pressed, uint16_t this_timer);
+bool hasAllBitsInMask(uint8_t value, uint8_t mask);
+void tap_code16_nomods(uint16_t kc);
+void format_layer_bitmap_string(char* buffer, layer_state_t state, layer_state_t default_state);
 
-#define IGNORE_MOD_TAP_INTERRUPT // this makes it possible to do rolling combos (zx) with keys that convert to other keys on hold (z becomes ctrl when you hold it, and when this option isn't enabled, z rapidly followed by x actually sends Ctrl-x. That's bad.)
+// clang-format off
+typedef union {
+    uint32_t raw;
+    struct {
+        bool     rgb_layer_change     :1;
+        bool     is_overwatch         :1;
+        bool     nuke_switch          :1;
+        bool     swapped_numbers      :1;
+        bool     rgb_matrix_idle_anim :1;
+        bool     mouse_jiggler        :1;
+        uint8_t  align_reserved       :2;
+        uint8_t  oled_brightness      :8;
+        uint32_t reserved             :15;
+        bool     check                :1;
+    };
+} userspace_config_t;
+// clang-format on
 
-#ifdef FAUXCLICKY_ENABLE
-#define AUD_ON  FC_ON
-#define AUD_OFF FC_OFF
-#else
-#define AUD_ON  AU_ON
-#define AUD_OFF AU_OFF
-#endif 
+_Static_assert(sizeof(userspace_config_t) == sizeof(uint32_t), "Userspace EECONFIG out of spec.");
 
+extern userspace_config_t userspace_config;
 
-
-// Since our quirky block definitions are basically a list of comma separated 
-// arguments, we need a wrapper in order for these definitions to be 
-// expanded before being used as arguments to the LAYOUT_xxx macro.
-#define LAYOUT_ergodox_wrapper(...)   LAYOUT_ergodox(__VA_ARGS__)
-#define KEYMAP_wrapper(...)           KEYMAP(__VA_ARGS__)
-
-// Blocks for each of the four major keyboard layouts
-// Organized so we can quickly adapt and modify all of them
-// at once, rather than for each keyboard, one at a time.
-// And this allows wor much cleaner blocks in the keymaps.
-// For instance Tap/Hold for Control on all of the layouts
-
-#define _________________QWERTY_L1_________________        KC_Q,    KC_W,    KC_E,    KC_R,    KC_T
-#define _________________QWERTY_L2_________________        KC_A,    KC_S,    KC_D,    KC_F,    KC_G
-#define _________________QWERTY_L3_________________  CTL_T(KC_Z),   KC_X,    KC_C,    KC_V,    KC_B
-
-#define _________________QWERTY_R1_________________        KC_Y,    KC_U,    KC_I,    KC_O,    KC_P
-#define _________________QWERTY_R2_________________        KC_H,    KC_J,    KC_K,    KC_L,    KC_SCLN
-#define _________________QWERTY_R3_________________        KC_N,    KC_M,    KC_COMM, KC_DOT,  CTL_T(KC_SLASH)
-
-
-#define _________________COLEMAK_L1________________       KC_Q,    KC_W,    KC_F,    KC_P,    KC_G
-#define _________________COLEMAK_L2________________       KC_A,    KC_R,    KC_S,    KC_T,    KC_D
-#define _________________COLEMAK_L3________________ CTL_T(KC_Z),   KC_X,    KC_C,    KC_V,    KC_B
-
-#define _________________COLEMAK_R1________________       KC_J,    KC_L,    KC_U,    KC_Y,    KC_SCLN
-#define _________________COLEMAK_R2________________       KC_H,    KC_N,    KC_E,    KC_I,    KC_O
-#define _________________COLEMAK_R3________________       KC_K,    KC_M,    KC_COMM, KC_DOT,  CTL_T(KC_SLASH)
-
-
-#define _________________DVORAK_L1_________________        KC_QUOT, KC_COMM, KC_DOT, KC_P,     KC_Y
-#define _________________DVORAK_L2_________________        KC_A,    KC_O,    KC_E,   KC_U,     KC_I
-#define _________________DVORAK_L3_________________  CTL_T(KC_SCLN),KC_Q,    KC_J,   KC_K,     KC_X
-
-#define _________________DVORAK_R1_________________        KC_F,    KC_G,    KC_C,    KC_R,    KC_L
-#define _________________DVORAK_R2_________________        KC_D,    KC_H,    KC_T,    KC_N,    KC_S
-#define _________________DVORAK_R3_________________        KC_B,    KC_M,    KC_W,    KC_V,    CTL_T(KC_Z)
-
-
-#define _________________WORKMAN_L1________________       KC_QUOT, KC_COMM, KC_DOT, KC_P,     KC_Y
-#define _________________WORKMAN_L2________________       KC_A,    KC_O,    KC_E,   KC_U,     KC_I
-#define _________________WORKMAN_L3________________ CTL_T(KC_SCLN),KC_Q,    KC_J,   KC_K,     KC_X
-
-#define _________________WORKMAN_R1________________       KC_F,    KC_G,    KC_C,    KC_R,    KC_L
-#define _________________WORKMAN_R2________________       KC_D,    KC_H,    KC_T,    KC_N,    KC_S
-#define _________________WORKMAN_R3________________       KC_B,    KC_M,    KC_W,    KC_V,    CTL_T(KC_Z)
-
-
-
-// Since we have 4 default layouts (QWERTY, DVORAK, COLEMAK and WORKMAN),
-// this allows us to quickly modify the bottom row for all of the layouts
-// so we don't have to alter it 4 times and hope that we haven't missed
-// anything
-#define ___________ERGODOX_BOTTOM_LEFT_____________       KC_QUOT, KC_LGUI, KC_LBRC, KC_RBRC
-#define ___________ERGODOX_BOTTOM_RIGHT____________       KC_LEFT, KC_DOWN, KC_UP,   KC_RGHT
-#endif
+void        set_keyboard_lock(bool enable);
+bool        get_keyboard_lock(void);
+void        toggle_keyboard_lock(void);
+const char* get_layer_name_string(layer_state_t state, bool alt_name);

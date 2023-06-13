@@ -1,10 +1,13 @@
-SUBPROJECT_DEFAULT = rev4
-
 MOUSEKEY_ENABLE = yes
-BLUETOOTH_ENABLE = yes
 EXTRAKEY_ENABLE = yes
 AUDIO_ENABLE = yes 
 
-ifndef QUANTUM_DIR
-	include ../../../../Makefile
+ifeq ($(MCU),at90usb1286)
+BOOTMAGIC_ENABLE = no       # Enable Bootmagic Lite
+CONSOLE_ENABLE = no
+COMMAND_ENABLE = no
+BLUETOOTH_ENABLE = no
+else
+BLUETOOTH_ENABLE = yes
 endif
+

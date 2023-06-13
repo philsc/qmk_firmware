@@ -1,606 +1,319 @@
-/*
-Copyright 2017 Christopher Courtney <drashna@live.com> @drashna
-
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
-*/
+// Copyright 2020 Christopher Courtney, aka Drashna Jael're  (@drashna) <drashna@live.com>
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 #include "drashna.h"
-#include "version.h"
+#include <stdio.h>
+#include <ctype.h>
 
-#if (__has_include("secrets.h"))
-#include "secrets.h"
-#else
-PROGMEM const char secret[][64] = {
-  "test1",
-  "test2",
-  "test3",
-  "test4",
-  "test5"
-};
-#endif
+userspace_config_t userspace_config;
 
-#ifdef FAUXCLICKY_ENABLE
-float fauxclicky_pressed_note[2]  = MUSICAL_NOTE(_A6, 2);  // (_D4, 0.25);
-float fauxclicky_released_note[2] = MUSICAL_NOTE(_A6, 2); // (_C4, 0.125);
-#else
-float fauxclicky_pressed[][2]             = SONG(E__NOTE(_A6)); // change to your tastes
-float fauxclicky_released[][2]             = SONG(E__NOTE(_A6)); // change to your tastes
-#endif 
-bool faux_click_enabled = true;
-
-#ifdef TAP_DANCE_ENABLE
-//define diablo macro timer variables
-static uint16_t diablo_timer[4];
-static uint8_t diablo_times[] = { 0, 1, 3, 5, 10, 30 };
-static uint8_t diablo_key_time[4];
-
-
-bool check_dtimer(uint8_t dtimer) {
-  // has the correct number of seconds elapsed (as defined by diablo_times)
-  return (timer_elapsed(diablo_timer[dtimer]) < (diablo_key_time[dtimer] * 1000)) ? false : true;
-};
-
-
-
-
-// Cycle through the times for the macro, starting at 0, for disabled.
-// Max of six values, so don't exceed
-void diablo_tapdance_master(qk_tap_dance_state_t *state, void *user_data, uint8_t diablo_key) {
-  if (state->count >= 7) {
-    diablo_key_time[diablo_key] = diablo_times[0];
-    reset_tap_dance(state);
-  }
-  else {
-    diablo_key_time[diablo_key] = diablo_times[state->count - 1];
-  }
+/**
+ * @brief Handle registering a keycode, with optional modifer based on timed event
+ *
+ * @param code keycode to send to host
+ * @param mod_code modifier to send with code, if held for tapping term or longer
+ * @param pressed the press/release event (can use "record->event.pressed" for this)
+ * @return true exits function
+ * @return false exits function
+ */
+bool mod_key_press_timer(uint16_t code, uint16_t mod_code, bool pressed) {
+    static uint16_t this_timer;
+    mod_key_press(code, mod_code, pressed, this_timer);
+    return false;
 }
 
-
-// Would rather have one function for all of this, but no idea how to do that...
-void diablo_tapdance1(qk_tap_dance_state_t *state, void *user_data) {
-  diablo_tapdance_master(state, user_data, 0);
-}
-
-void diablo_tapdance2(qk_tap_dance_state_t *state, void *user_data) {
-  diablo_tapdance_master(state, user_data, 1);
-}
-
-void diablo_tapdance3(qk_tap_dance_state_t *state, void *user_data) {
-  diablo_tapdance_master(state, user_data, 2);
-}
-
-void diablo_tapdance4(qk_tap_dance_state_t *state, void *user_data) {
-  diablo_tapdance_master(state, user_data, 3);
-}
-
-
-
-//Tap Dance Definitions
-qk_tap_dance_action_t tap_dance_actions[] = {
-  // tap once to disable, and more to enable timed micros
-  [TD_D3_1] = ACTION_TAP_DANCE_FN(diablo_tapdance1),
-  [TD_D3_2] = ACTION_TAP_DANCE_FN(diablo_tapdance2),
-  [TD_D3_3] = ACTION_TAP_DANCE_FN(diablo_tapdance3),
-  [TD_D3_4] = ACTION_TAP_DANCE_FN(diablo_tapdance4),
-
-};
-#endif
-
-#ifdef AUDIO_ENABLE
-float tone_qwerty[][2]       = SONG(QWERTY_SOUND);
-float tone_dvorak[][2]       = SONG(DVORAK_SOUND);
-float tone_colemak[][2]      = SONG(COLEMAK_SOUND);
-float tone_workman[][2]      = SONG(PLOVER_SOUND);
-float tone_hackstartup[][2]  = SONG(ONE_UP_SOUND);
-#endif
-
-
-// Add reconfigurable functions here, for keymap customization
-// This allows for a global, userspace functions, and continued
-// customization of the keymap.  Use _keymap instead of _user
-// functions in the keymaps
-__attribute__ ((weak))
-void matrix_init_keymap(void) {}
-
-__attribute__ ((weak))
-void matrix_scan_keymap(void) {}
-
-__attribute__ ((weak))
-bool process_record_keymap(uint16_t keycode, keyrecord_t *record) {
-  return true;
-}
-
-__attribute__ ((weak))
-uint32_t layer_state_set_keymap (uint32_t state) {
-  return state;
-}
-
-__attribute__ ((weak))
-void led_set_keymap(uint8_t usb_led) {}
-
-bool is_overwatch = false;
-#ifdef RGBLIGHT_ENABLE
-bool rgb_layer_change = true;
-#endif
-
-
-
-
-// Call user matrix init, set default RGB colors and then
-// call the keymap's init function
-void matrix_init_user(void) {
-#ifdef RGBLIGHT_ENABLE
-  uint8_t default_layer = eeconfig_read_default_layer();
-
-  rgblight_enable();
-
-  if (true) {
-    if (default_layer & (1UL << _COLEMAK)) {
-      rgblight_set_magenta;
-    }
-    else if (default_layer & (1UL << _DVORAK)) {
-      rgblight_set_green;
-    }
-    else if (default_layer & (1UL << _WORKMAN)) {
-      rgblight_set_purple;
-    }
-    else {
-      rgblight_set_teal;
-    }
-  }
-  else
-  {
-    rgblight_set_red;
-    rgblight_mode(5);
-  }
-#endif
-#ifdef AUDIO_ENABLE
-//  wait_ms(21); // gets rid of tick
-//  stop_all_notes();
-//  PLAY_SONG(tone_hackstartup);
-#endif
-  matrix_init_keymap();
-}
-#ifdef TAP_DANCE_ENABLE
-
-// Sends the key press to system, but only if on the Diablo layer
-void send_diablo_keystroke(uint8_t diablo_key) {
-  if (biton32(layer_state) == _DIABLO) {
-    switch (diablo_key) {
-    case 0:
-      SEND_STRING("1");
-      break;
-    case 1:
-      SEND_STRING("2");
-      break;
-    case 2:
-      SEND_STRING("3");
-      break;
-    case 3:
-      SEND_STRING("4");
-      break;
-    }
-  }
-}
-
-// Checks each of the 4 timers/keys to see if enough time has elapsed
-// Runs the "send string" command if enough time has passed, and resets the timer.
-void run_diablo_macro_check(void) {
-  uint8_t dtime;
-
-  for (dtime = 0; dtime < 4; dtime++) {
-    if (check_dtimer(dtime) && diablo_key_time[dtime]) {
-      diablo_timer[dtime] = timer_read();
-      send_diablo_keystroke(dtime);
-    }
-  }
-
-}
-#endif
-// No global matrix scan code, so just run keymap's matix
-// scan function
-void matrix_scan_user(void) {
-#ifdef TAP_DANCE_ENABLE  // Run Diablo 3 macro checking code.
-  run_diablo_macro_check();
-#endif
-  matrix_scan_keymap();
-}
-
-void led_set_user(uint8_t usb_led) {
-  led_set_keymap(usb_led);
-}
-
-
-
-void persistent_default_layer_set(uint16_t default_layer) {
-  eeconfig_update_default_layer(default_layer);
-  default_layer_set(default_layer);
-}
-
-// Defines actions tor my global custom keycodes. Defined in drashna.h file
-// Then runs the _keymap's recod handier if not processed here
-bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-
-#ifdef CONSOLE_ENABLE
-  xprintf("KL: row: %u, column: %u, pressed: %u\n", record->event.key.col, record->event.key.row, record->event.pressed);
-#endif
-
-#ifdef AUDIO_ENABLE
-  if (faux_click_enabled) {
-    if (record->event.pressed) {
-      PLAY_SONG(fauxclicky_pressed);
+/**
+ * @brief Handle registation of keycode, with optional modifier based on custom timer
+ *
+ * @param code keycode to send to host
+ * @param mod_code modifier keycode to send with code, if held for tapping term or longer
+ * @param pressed the press/release event
+ * @param this_timer custom timer to use
+ * @return true
+ * @return false
+ */
+bool mod_key_press(uint16_t code, uint16_t mod_code, bool pressed, uint16_t this_timer) {
+    if (pressed) {
+        this_timer = timer_read();
     } else {
-      stop_note(NOTE_A6);
-      PLAY_SONG(fauxclicky_released);
+        if (timer_elapsed(this_timer) < TAPPING_TERM) {
+            tap_code(code);
+        } else {
+            register_code(mod_code);
+            tap_code(code);
+            unregister_code(mod_code);
+        }
     }
-  }
+    return false;
+}
+
+/**
+ * @brief Performs exact match for modifier values
+ *
+ * @param value the modifer varible (get_mods/get_oneshot_mods/get_weak_mods)
+ * @param mask the modifier mask to check for
+ * @return true Has the exact modifiers specifed
+ * @return false Does not have the exact modifiers specified
+ */
+bool hasAllBitsInMask(uint8_t value, uint8_t mask) {
+    value &= 0xF;
+    mask &= 0xF;
+
+    return (value & mask) == mask;
+}
+
+/**
+ * @brief Tap keycode, with no mods
+ *
+ * @param kc keycode to use
+ */
+void tap_code16_nomods(uint16_t kc) {
+    uint8_t temp_mod = get_mods();
+    clear_mods();
+    clear_oneshot_mods();
+    tap_code16(kc);
+    set_mods(temp_mod);
+}
+
+#ifdef I2C_SCANNER_ENABLE
+#    include "i2c_master.h"
+#    include "debug.h"
+
+#    ifndef I2C_SCANNER_TIMEOUT
+#        define I2C_SCANNER_TIMEOUT 50
+#    endif
+
+i2c_status_t i2c_start_bodge(uint8_t address, uint16_t timeout) {
+    i2c_start(address);
+
+    // except on ChibiOS where the only way is do do "something"
+    uint8_t data = 0;
+    return i2c_readReg(address, 0, &data, sizeof(data), I2C_SCANNER_TIMEOUT);
+}
+
+#    define i2c_start i2c_start_bodge
+
+void do_scan(void) {
+    uint8_t nDevices = 0;
+
+    dprintf("Scanning...\n");
+
+    for (uint8_t address = 1; address < 127; address++) {
+        // The i2c_scanner uses the return value of
+        // i2c_start to see if a device did acknowledge to the address.
+        i2c_status_t error = i2c_start(address << 1, I2C_SCANNER_TIMEOUT);
+        if (error == I2C_STATUS_SUCCESS) {
+            i2c_stop();
+            xprintf("  I2C device found at address 0x%02X\n", I2C_SCANNER_TIMEOUT);
+            nDevices++;
+        } else {
+            // dprintf("  Unknown error (%u) at address 0x%02X\n", error, address);
+        }
+    }
+
+    if (nDevices == 0)
+        xprintf("No I2C devices found\n");
+    else
+        xprintf("done\n");
+}
+
+uint16_t scan_timer = 0;
+
+void housekeeping_task_i2c_scanner(void) {
+    if (timer_elapsed(scan_timer) > 5000) {
+        do_scan();
+        scan_timer = timer_read();
+    }
+}
+
+void keyboard_post_init_i2c(void) {
+    i2c_init();
+    scan_timer = timer_read();
+}
 #endif
 
-  switch (keycode) {
-  case KC_QWERTY:
-    if (record->event.pressed) {
-#ifdef AUDIO_ENABLE
-      PLAY_SONG(tone_qwerty);
-#endif
-      persistent_default_layer_set(1UL << _QWERTY);
-    }
-    return false;
-    break;
-  case KC_COLEMAK:
-    if (record->event.pressed) {
-#ifdef AUDIO_ENABLE
-      PLAY_SONG(tone_colemak);
-#endif
-      persistent_default_layer_set(1UL << _COLEMAK);
-    }
-    return false;
-    break;
-  case KC_DVORAK:
-    if (record->event.pressed) {
-#ifdef AUDIO_ENABLE
-      PLAY_SONG(tone_dvorak);
-#endif
-      persistent_default_layer_set(1UL << _DVORAK);
-    }
-    return false;
-    break;
-  case KC_WORKMAN:
-    if (record->event.pressed) {
-#ifdef AUDIO_ENABLE
-      PLAY_SONG(tone_workman);
-#endif
-      persistent_default_layer_set(1UL << _WORKMAN);
-    }
-    return false;
-    break;
-  case LOWER:
-    if (record->event.pressed) {
-      layer_on(_LOWER);
-      update_tri_layer(_LOWER, _RAISE, _ADJUST);
-    }
-    else {
-      layer_off(_LOWER);
-      update_tri_layer(_LOWER, _RAISE, _ADJUST);
-    }
-    return false;
-    break;
-  case RAISE:
-    if (record->event.pressed) {
-      layer_on(_RAISE);
-      update_tri_layer(_LOWER, _RAISE, _ADJUST);
-    }
-    else {
-      layer_off(_RAISE);
-      update_tri_layer(_LOWER, _RAISE, _ADJUST);
-    }
-    return false;
-    break;
-  case ADJUST:
-    if (record->event.pressed) {
-      layer_on(_ADJUST);
-    }
-    else {
-      layer_off(_ADJUST);
-    }
-    return false;
-    break;
-#if !(defined(KEYBOARD_orthodox_rev1) || defined(KEYBOARD_orthodox_rev3) || defined(KEYBOARD_ergodox_ez))
-  case KC_OVERWATCH:
-    if (record->event.pressed) {
-      is_overwatch = !is_overwatch;
-    }
-#ifdef RGBLIGHT_ENABLE
-    is_overwatch ? rgblight_mode(17) : rgblight_mode(18);
-#endif
-    return false;
-    break;
-  case KC_SALT:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("Salt, salt, salt...");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_MORESALT:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("Please sir, can I have some more salt?!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_SALTHARD:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("Your salt only makes me harder, and even more aggressive!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_GOODGAME:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("Good game, everyone!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_GLHF:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("Good luck, have fun!!!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_SYMM:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("Left click to win!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_JUSTGAME:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("It may be a game, but if you don't want to actually try, please go play AI, so that people that actually want to take the game seriously and \"get good\" have a place to do so without trolls like you throwing games.");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_TORB:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("That was positively riveting!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_AIM:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("That aim is absolutely amazing. It's almost like you're a machine!" SS_TAP(X_ENTER));
-      wait_ms(3000);
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      SEND_STRING("Wait! That aim is TOO good!  You're clearly using an aim hack! CHEATER!" SS_TAP(X_ENTER));
-    }
-    return false;
-    break;
-  case KC_C9:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("OMG!!!  C9!!!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-  case KC_GGEZ:
-    if (!record->event.pressed) {
-      register_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      unregister_code(is_overwatch ? KC_BSPC : KC_ENTER);
-      wait_ms(50);
-      SEND_STRING("That was a fantastic game, though it was a bit easy. Try harder next time!");
-      register_code(KC_ENTER);
-      unregister_code(KC_ENTER);
-    }
-    return false;
-    break;
-#endif
-#ifdef TAP_DANCE_ENABLE
-  case KC_DIABLO_CLEAR:  // reset all Diable timers, disabling them
-    if (record->event.pressed) {
-      uint8_t dtime;
+#if defined(AUTOCORRECT_ENABLE)
+#    if defined(AUDIO_ENABLE)
+#        ifdef USER_SONG_LIST
+float autocorrect_song[][2] = SONG(MARIO_GAMEOVER);
+#        else
+float autocorrect_song[][2] = SONG(PLOVER_GOODBYE_SOUND);
+#        endif
+#    endif
 
-      for (dtime = 0; dtime < 4; dtime++) {
-        diablo_key_time[dtime] = diablo_times[0];
-      }
+bool apply_autocorrect(uint8_t backspaces, const char *str) {
+    if (layer_state_is(_GAMEPAD)) {
+        return false;
     }
-    return false;
-    break;
-#endif
-  case KC_MAKE:
-    if (!record->event.pressed) {
-      SEND_STRING("make " QMK_KEYBOARD ":" QMK_KEYMAP
-#if  (defined(BOOTLOADER_DFU) || defined(BOOTLOADER_LUFA_DFU) || defined(BOOTLOADER_QMK_DFU))
-       ":dfu"
-#elif defined(BOOTLOADER_HALFKAY)
-      ":teensy"
-//#elif defined(BOOTLOADER_CATERINA)
-//       ":avrdude"
-#endif
-        SS_TAP(X_ENTER));
-    }
-    return false;
-    break;
-  case KC_RESET:
-    if (!record->event.pressed) {
-#ifdef RGBLIGHT_ENABLE
-      rgblight_enable();
-      rgblight_mode(1);
-      rgblight_setrgb(0xff, 0x00, 0x00);
-#endif
-      reset_keyboard();
-    }
-    return false;
-    break;
-  case EPRM:
-    if (record->event.pressed) {
-      eeconfig_init();
-    }
-    return false;
-    break;
-  case VRSN:
-    if (record->event.pressed) {
-      SEND_STRING(QMK_KEYBOARD "/" QMK_KEYMAP " @ " QMK_VERSION);
-    }
-    return false;
-    break;
-  case KC_SECRET_1 ... KC_SECRET_5:
-    if (!record->event.pressed) {
-      send_string_P(secret[keycode - KC_SECRET_1]);
-    }
-    return false;
-    break;
-  case KC_FXCL:
-    if (!record->event.pressed) {
-      faux_click_enabled = !faux_click_enabled;
-    }
-    return false;
-    break;
-  case KC_RGB_T:  // Because I want the option to go back to normal RGB mode rather than always layer indication
-#ifdef RGBLIGHT_ENABLE
-    if (record->event.pressed) {
-      rgb_layer_change = !rgb_layer_change;
-    }
-#endif
-    return false;
-    break;
-#ifdef RGBLIGHT_ENABLE
-  case RGB_MODE_FORWARD ... RGB_MODE_GRADIENT: // quantum_keycodes.h L400 for definitions
-    if (record->event.pressed) { //This disrables layer indication, as it's assumed that if you're changing this ... you want that disabled
-      rgb_layer_change = false;
-    }
+    // TO-DO use unicode stuff for this.  Will probably have to reverse engineer
+    // send string to get working properly, to send char string.
+
+#    if defined(AUDIO_ENABLE)
+    PLAY_SONG(autocorrect_song);
+#    endif
     return true;
-    break;
-#endif
-  }
-  return process_record_keymap(keycode, record);
 }
+#endif
 
-// Runs state check and changes underglow color and animation
-// on layer change, no matter where the change was initiated
-// Then runs keymap's layer change check
-uint32_t layer_state_set_user(uint32_t state) {
-#ifdef RGBLIGHT_ENABLE
-  uint8_t default_layer = eeconfig_read_default_layer();
-  if (rgb_layer_change) {
-    switch (biton32(state)) {
-    case _NAV:
-      rgblight_set_blue;
-      rgblight_mode(1);
-      break;
-    case _SYMB:
-      rgblight_set_blue;
-      rgblight_mode(2);
-      break;
-    case _MOUS:
-      rgblight_set_yellow;
-      rgblight_mode(1);
-      break;
-    case _MACROS:
-      rgblight_set_orange;
-      is_overwatch ? rgblight_mode(17) : rgblight_mode(18);
-      break;
-    case _MEDIA:
-      rgblight_set_green;
-      rgblight_mode(22);
-      break;
-    case _GAMEPAD:
-      rgblight_set_orange;
-      rgblight_mode(17);
-      break;
-    case _DIABLO:
-      rgblight_set_red;
-      rgblight_mode(5);
-      break;
-    case _RAISE:
-      rgblight_set_yellow;
-      rgblight_mode(5);
-      break;
-    case _LOWER:
-      rgblight_set_orange;
-      rgblight_mode(5);
-      break;
-    case _ADJUST:
-      rgblight_set_red;
-      rgblight_mode(23);
-      break;
-    case _COVECUBE:
-      rgblight_set_green;
-      rgblight_mode(2);
-      break;
-    default:
-      if (default_layer & (1UL << _COLEMAK)) {
-        rgblight_set_magenta;
-      }
-      else if (default_layer & (1UL << _DVORAK)) {
-        rgblight_set_green;
-      }
-      else if (default_layer & (1UL << _WORKMAN)) {
-        rgblight_set_purple;
-      }
-      else {
-        rgblight_set_teal;
-      }
-      rgblight_mode(1);
-      break;
+#if defined(CAPS_WORD_ENABLE)
+bool caps_word_press_user(uint16_t keycode) {
+    switch (keycode) {
+        // Keycodes that continue Caps Word, with shift applied.
+        case KC_MINS:
+            if (!keymap_config.swap_lctl_lgui) {
+                return true;
+            }
+        case KC_A ... KC_Z:
+            add_weak_mods(MOD_BIT(KC_LSFT)); // Apply shift to next key.
+            return true;
+
+        // Keycodes that continue Caps Word, without shifting.
+        case KC_1 ... KC_0:
+        case KC_BSPC:
+        case KC_DEL:
+        case KC_UNDS:
+            return true;
+
+        default:
+            return false; // Deactivate Caps Word.
     }
-  }
-#endif
-  return layer_state_set_keymap (state);
 }
 
+#    if !defined(NO_ACTION_ONESHOT)
+void oneshot_locked_mods_changed_user(uint8_t mods) {
+    if (mods & MOD_MASK_SHIFT) {
+        del_mods(MOD_MASK_SHIFT);
+        set_oneshot_locked_mods(~MOD_MASK_SHIFT & get_oneshot_locked_mods());
+        caps_word_on();
+    }
+}
+#    endif
+#endif
 
+void format_layer_bitmap_string(char *buffer, layer_state_t state, layer_state_t default_state) {
+    for (int i = 0; i < 16; i++) {
+        if (i == 0 || i == 4 || i == 8 || i == 12) {
+            *buffer = ' ';
+            ++buffer;
+        }
+
+        uint8_t layer = i;
+        if ((default_state & ((layer_state_t)1 << layer)) != 0) {
+            *buffer = 'D';
+        } else if ((state & ((layer_state_t)1 << layer)) != 0) {
+            *buffer = '1';
+        } else {
+            *buffer = '_';
+        }
+        ++buffer;
+    }
+    *buffer = 0;
+}
+
+#if defined(OS_DETECTION_ENABLE) && defined(DEFERRED_EXEC_ENABLE)
+os_variant_t os_type;
+
+uint32_t startup_exec(uint32_t trigger_time, void *cb_arg) {
+    if (is_keyboard_master()) {
+        os_type = detected_host_os();
+        if (os_type) {
+            bool is_mac = (os_type == OS_MACOS) || (os_type == OS_IOS);
+            if (keymap_config.swap_lctl_lgui != is_mac) {
+                keymap_config.swap_lctl_lgui = keymap_config.swap_rctl_rgui = is_mac;
+                eeconfig_update_keymap(keymap_config.raw);
+            }
+#    ifdef UNICODE_COMMON_ENABLE
+            set_unicode_input_mode_soft(keymap_config.swap_lctl_lgui ? UNICODE_MODE_MACOS : UNICODE_MODE_WINCOMPOSE);
+#    endif
+            switch (os_type) {
+                case OS_UNSURE:
+                    xprintf("unknown OS Detected\n");
+                    break;
+                case OS_LINUX:
+                    xprintf("Linux Detected\n");
+                    break;
+                case OS_WINDOWS:
+                    xprintf("Windows Detected\n");
+                    break;
+#    if 0
+                case OS_WINDOWS_UNSURE:
+                    xprintf("Windows? Detected\n");
+                    break;
+#    endif
+                case OS_MACOS:
+                    xprintf("MacOS Detected\n");
+                    break;
+                case OS_IOS:
+                    xprintf("iOS Detected\n");
+                    break;
+#    if 0
+                case OS_PS5:
+                    xprintf("PlayStation 5 Detected\n");
+                    break;
+                case OS_HANDHELD:
+                    xprintf("Nintend Switch/Quest 2 Detected\n");
+                    break;
+#    endif
+            }
+        }
+    }
+
+    return os_type ? 0 : 500;
+}
+#endif
+
+static host_driver_t *host_driver          = 0;
+static bool           host_driver_disabled = false;
+
+void set_keyboard_lock(bool status) {
+    if (!status && !host_get_driver()) {
+        host_set_driver(host_driver);
+    } else if (status && host_get_driver()) {
+        host_driver = host_get_driver();
+        clear_keyboard();
+        host_set_driver(0);
+    } else if (status) {
+        clear_keyboard();
+    }
+
+    host_driver_disabled = status;
+}
+
+void toggle_keyboard_lock(void) {
+    set_keyboard_lock(!host_driver_disabled);
+}
+
+bool get_keyboard_lock(void) {
+    return host_driver_disabled;
+}
+
+const char *get_layer_name_string(layer_state_t state, bool alt_name) {
+    switch (get_highest_layer(state)) {
+        case _QWERTY:
+            return alt_name ? "Num Pad" : "QWERTY";
+        case _COLEMAK:
+            return "Colemak";
+        case _COLEMAK_DH:
+            return "Colemak-DH";
+        case _DVORAK:
+            return "Dvorak";
+        case _GAMEPAD:
+            return "Gamepad";
+        case _DIABLO:
+            return "Diablo";
+        case _DIABLOII:
+            return "Diablo II";
+        case _MOUSE:
+            return alt_name ? "Macros" : "Mouse";
+        case _MEDIA:
+            return "Media";
+        case _LOWER:
+            return "Lower";
+        case _RAISE:
+            return "Raise";
+        case _ADJUST:
+            return "Adjust";
+        default:
+            return "Unknown";
+    }
+}

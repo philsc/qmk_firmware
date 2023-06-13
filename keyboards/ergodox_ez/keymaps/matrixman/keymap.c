@@ -1,4 +1,4 @@
-#include "ergodox_ez.h"
+#include QMK_KEYBOARD_H
 #include "debug.h"
 #include "action_layer.h"
 
@@ -36,15 +36,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *                                 |      |      | Ctrl |       | Ctrl |        |      |
  *                                 `--------------------'       `----------------------'
  */
-[BASE] = KEYMAP(  // layer 0 : default
+[BASE] = LAYOUT_ergodox(  // layer 0 : default
         // left hand
    LT(NAV,KC_ESC),  KC_1,         KC_2,   KC_3,   KC_4,   KC_5,   KC_DELETE,
         KC_TAB,     KC_Q,         KC_W,   KC_E,   KC_R,   KC_T,   CTL_T(KC_ESC),
-        KC_LCTRL,   KC_A,         KC_S,   KC_D,   KC_F,   KC_G,
+        KC_LCTL,    KC_A,         KC_S,   KC_D,   KC_F,   KC_G,
         KC_LSFT,    KC_Z,         KC_X,   KC_C,   KC_V,   KC_B,   ALT_T(KC_TAB),
-        KC_LCTRL,   KC_LGUI,      KC_LALT,KC_NO,  MO(NAV),
+        KC_LCTL,    KC_LGUI,      KC_LALT,KC_NO,  MO(NAV),
 
-                                           KC_LCTRL,  KC_LALT,
+                                           KC_LCTL,   KC_LALT,
                                                       MO(NAV),
                        KC_TAB,    LT(SYMB_L,KC_ESC),  KC_LSFT,
                   // right hand
@@ -53,7 +53,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                  KC_H,   KC_J,   KC_K,   KC_L,   KC_SCLN,   KC_QUOT,
                   ALT_T(KC_INS), KC_N,   KC_M,   KC_COMM,KC_DOT, KC_SLSH,   KC_RSFT,
                                          MO(NAV),KC_NO,  KC_RALT,KC_RGUI,   CTL_T(KC_ENT),
-                  KC_RALT,   KC_RCTRL,
+                  KC_RALT,   KC_RCTL,
                   MO(NAV),
                   KC_RSFT, LT(SYMB_R,KC_SPACE), KC_BSPC
     ),
@@ -78,7 +78,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *                                 |      |      |      |       |      |      |      |
  *                                 `--------------------'       `--------------------'
  */
-[SYMB_L] = KEYMAP(
+[SYMB_L] = LAYOUT_ergodox(
        // left hand
        KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,
        KC_TRNS,  KC_GRV ,  KC_TILD,  KC_ASTR,  KC_AMPR,  KC_SLSH,  LSFT(KC_COMM),
@@ -99,7 +99,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
        KC_TRNS,  KC_SCLN,  KC_DOT
 ),
 
-[SYMB_R] = KEYMAP(  // same as above, but avoids clash between SYMB and ;/:
+[SYMB_R] = LAYOUT_ergodox(  // same as above, but avoids clash between SYMB and ;/:
        // left hand
        KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,  KC_TRNS,
        KC_TRNS,  KC_GRV ,  KC_TILD,  KC_ASTR,  KC_AMPR,  KC_SLSH,  LSFT(KC_COMM),
@@ -140,7 +140,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
  *                                 |      |      |      |       |      |      |      |
  *                                 `--------------------'       `--------------------'
  */
-[NAV] = KEYMAP(
+[NAV] = LAYOUT_ergodox(
        // left hand
        KC_TRNS,  KC_F1,    KC_F2,          KC_F3,        KC_F4,    KC_F5,  KC_PAUSE,
        KC_TRNS,  KC_F1,    KC_F2,          KC_F3,        KC_F4,    KC_F5,  KC_TRNS,
@@ -151,7 +151,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
                                                          KC_TRNS,
                                KC_TRNS,    KC_TRNS,      KC_TRNS,
        // right hand
-       KC_PSCREEN,  KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,
+       KC_PSCR,     KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F11,
        KC_TRNS,     KC_F6,    KC_F7,    KC_F8,    KC_F9,    KC_F10,   KC_F12,
                     KC_LEFT,  KC_DOWN,  KC_UP,    KC_RGHT,  KC_F11,   KC_ENT,
        KC_TRNS,     KC_HOME,  KC_PGDN,  KC_PGUP,  KC_END,   KC_F12,   KC_TRNS,
@@ -162,35 +162,10 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 ),
 };
 
-const uint16_t PROGMEM fn_actions[] = {
-//    [1] = ACTION_LAYER_TAP_TOGGLE(SYMB),               // FN1 - Tap/Toggle Layer 1 (Symbols)
-//    [2] = ACTION_LAYER_TAP_TOGGLE(NAV)                // FN2 - Tap/Toggle Layer 2 (Nav)
-};
-
-const macro_t *action_get_macro(keyrecord_t *record, uint8_t id, uint8_t opt)
-{
-  // MACRODOWN only works in this function
-      switch(id) {
-        case 0:
-        if (record->event.pressed) {
-          register_code(KC_RSFT);
-        } else {
-          unregister_code(KC_RSFT);
-        }
-        break;
-      }
-    return MACRO_NONE;
-};
-
-// Runs just one time when the keyboard initializes.
-void matrix_init_user(void) {
-
-};
-
 // Runs constantly in the background, in a loop.
 void matrix_scan_user(void) {
 
-    uint8_t layer = biton32(layer_state);
+    uint8_t layer = get_highest_layer(layer_state);
 
     ergodox_board_led_off();
     ergodox_right_led_1_off();

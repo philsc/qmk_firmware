@@ -17,7 +17,7 @@ enum tap_dance_keycodes {
   Used to indicate a CTRL should be pressed on one press, or CTRL+ALT on
   a double tap
 */
-void dance_ctl_ctlalt_each(qk_tap_dance_state_t *state, void *user_data) {
+void dance_ctl_ctlalt_each(tap_dance_state_t *state, void *user_data) {
   register_code(KC_LCTL);
   if(state->count > 1) {
     register_code(KC_LALT);
@@ -25,7 +25,7 @@ void dance_ctl_ctlalt_each(qk_tap_dance_state_t *state, void *user_data) {
 }
 
 /* Used to release CTRL or the double tapped variant CTRL+ALT */
-void dance_ctl_ctlalt_reset(qk_tap_dance_state_t *state, void *user_data) {
+void dance_ctl_ctlalt_reset(tap_dance_state_t *state, void *user_data) {
   unregister_code(KC_LCTL);
   if(state->count > 1) {
     unregister_code(KC_LALT);
@@ -37,7 +37,7 @@ void dance_ctl_ctlalt_reset(qk_tap_dance_state_t *state, void *user_data) {
   Each is used to make sure ADJUST activates as soon as it's pressed the first
   time.
 */
-void dance_adj_each(qk_tap_dance_state_t *state, void *user_data) {
+void dance_adj_each(tap_dance_state_t *state, void *user_data) {
   if(state->count == 1) {
     layer_on(_ADJUST);
   } else {
@@ -46,7 +46,7 @@ void dance_adj_each(qk_tap_dance_state_t *state, void *user_data) {
 }
 
 /* Set NUMPAD layer on second tap and MOUSE layer on 3rd */
-void dance_adj_finish(qk_tap_dance_state_t *state, void *user_data) {
+void dance_adj_finish(tap_dance_state_t *state, void *user_data) {
   switch(state->count) {
     case 1: break;
     case 2:
@@ -62,7 +62,7 @@ void dance_adj_finish(qk_tap_dance_state_t *state, void *user_data) {
 }
 
 /* Turn off any layer that may have been tapped on */
-void dance_adj_reset(qk_tap_dance_state_t *state, void *user_data) {
+void dance_adj_reset(tap_dance_state_t *state, void *user_data) {
   switch(state->count) {
     case 1:
       layer_off(_ADJUST);
@@ -76,7 +76,7 @@ void dance_adj_reset(qk_tap_dance_state_t *state, void *user_data) {
   }
 }
 
-qk_tap_dance_action_t tap_dance_actions[] = {
+tap_dance_action_t tap_dance_actions[] = {
   [TD_CTL_CTLALT] = ACTION_TAP_DANCE_FN_ADVANCED(dance_ctl_ctlalt_each, NULL, dance_ctl_ctlalt_reset),
   [TD_LGUI_RGUI]  = ACTION_TAP_DANCE_DOUBLE(KC_LGUI, KC_RGUI),
   [TD_LALT_RALT]  = ACTION_TAP_DANCE_DOUBLE(KC_LALT, KC_RALT),
@@ -88,8 +88,19 @@ qk_tap_dance_action_t tap_dance_actions[] = {
  * |Adjust| Ctrl | Alt  | GUI  |Lower | Del  ||Space |Raise | Left | Down |  Up  |Right |
  * `-----------------------------------------'`-----------------------------------------'
  */
-#define BOTTOM_40_ROW \
+#define BOTTOM_GRID_ROW \
   TD_ADJ  ,TD_CTL , TD_ALT , TD_GUI , LOWER  , KC_DEL , KC_SPC , RAISE  , KC_LEFT, KC_DOWN, KC_UP  , KC_RGHT
+
+/*
+ * ,-----------------------------------------..-----------------------------------------.
+ * |Adjust| Ctrl | Alt  | GUI  |Lower |Space ||Space |Raise | Left | Down |  Up  |Right |
+ * `-----------------------------------------'`-----------------------------------------'
+ */
+#define BOTTOM_MIT_ROW \
+  TD_ADJ  ,TD_CTL , TD_ALT , TD_GUI , LOWER  , KC_SPC , KC_SPC , RAISE  , KC_LEFT, KC_DOWN, KC_UP  , KC_RGHT
+
+#ifdef USE_MIT_LAYOUT
+#define BOTTOM_ROW BOTTOM_MIT_ROW
 
 /*
  * ,-----------------------------------------..-----------------------------------------.
@@ -101,6 +112,22 @@ qk_tap_dance_action_t tap_dance_actions[] = {
 #define BOTTOM_RAISE_LOWER_ROWS \
   _______, KC_F7  , KC_F8  , KC_F9  , KC_F10 , KC_F11 , KC_F12 , KC_PGUP, KC_PGDN, KC_HOME, KC_END , KC_MSTP, \
   _______, _______, _______, _______, _______, _______, _______, _______, KC_MUTE, KC_VOLD, KC_VOLU, KC_MPLY
+
+#else
+#define BOTTOM_ROW BOTTOM_GRID_ROW
+
+/*
+ * ,-----------------------------------------..-----------------------------------------.
+ * |      |  F7  |  F8  |  F9  |  F10 |  F11 ||  F12 | PgUp | PgDn | Home | End  |  ⏹   |
+ * |------+------+------+------+------+------||------+------+------+------+------+------|
+ * |      |      |      |      |      |      || Bksp |      | Mute | Vol- | Vol+ |  ⏯   |
+ * `-----------------------------------------'`-----------------------------------------'
+ */
+#define BOTTOM_RAISE_LOWER_ROWS \
+  _______, KC_F7  , KC_F8  , KC_F9  , KC_F10 , KC_F11 , KC_F12 , KC_PGUP, KC_PGDN, KC_HOME, KC_END , KC_MSTP, \
+  _______, _______, _______, _______, _______, KC_BSPC, _______, _______, KC_MUTE, KC_VOLD, KC_VOLU, KC_MPLY
+#endif
+
 
 /*
  * ,-----------------------------------------..-----------------------------------------.
@@ -115,7 +142,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
  * `-----------------------------------------'`-----------------------------------------'
  */
 
-#define STD_ESC_ROW(...) KC_ESC, __VA_ARGS__
+#define STD_ESC_ROW(...) MT_ESC, __VA_ARGS__
 
 /*
  * ,-----------------------------------------..-----------------------------------------.
@@ -139,7 +166,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
   STD_TAB_ROW( KC_Q   , KC_W   , KC_E   , KC_R   , KC_T   , KC_Y   , KC_U   , KC_I   , KC_O   , KC_P   ),           \
   STD_ESC_ROW( KC_A   , KC_S   , KC_D   , KC_F   , KC_G   , KC_H   , KC_J   , KC_K   , KC_L   , KC_SCLN , KC_QUOT), \
   STD_LSFT_ROW(KC_Z   , KC_X   , KC_C   , KC_V   , KC_B   , KC_N   , KC_M   , KC_COMM, KC_DOT , KC_SLSH),           \
-  BOTTOM_40_ROW
+  BOTTOM_ROW
 
 /* Colemak
  * ,-----------------------------------------.,-----------------------------------------.
@@ -156,7 +183,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
   STD_TAB_ROW( KC_Q   , KC_W   , KC_F   , KC_P   , KC_G   , KC_J   , KC_L   , KC_U   , KC_Y   , KC_SCLN),           \
   STD_ESC_ROW( KC_A   , KC_R   , KC_S   , KC_T   , KC_D   , KC_H   , KC_N   , KC_E   , KC_I   , KC_O    , KC_QUOT), \
   STD_LSFT_ROW(KC_Z   , KC_X   , KC_C   , KC_V   , KC_B   , KC_K   , KC_M   , KC_COMM, KC_DOT , KC_SLSH),           \
-  BOTTOM_40_ROW
+  BOTTOM_ROW
 
 /* Workman
  * ,-----------------------------------------..-----------------------------------------.
@@ -173,7 +200,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
   STD_TAB_ROW( KC_Q   , KC_D   , KC_R   , KC_W   , KC_B   , KC_J   , KC_F   , KC_U   , KC_P   , KC_SCLN),           \
   STD_ESC_ROW( KC_A   , KC_S   , KC_H   , KC_T   , KC_G   , KC_Y   , KC_N   , KC_E   , KC_O   , KC_I    , KC_QUOT), \
   STD_LSFT_ROW(KC_Z   , KC_X   , KC_M   , KC_C   , KC_V   , KC_K   , KC_L   , KC_COMM, KC_DOT , KC_SLSH),           \
-  BOTTOM_40_ROW
+  BOTTOM_ROW
 
 /* Dvorak
  * ,-----------------------------------------..-----------------------------------------.
@@ -190,7 +217,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
   STD_TAB_ROW( KC_QUOT, KC_COMM, KC_DOT , KC_P   , KC_Y   , KC_F   , KC_G   , KC_C   , KC_R   , KC_L),           \
   STD_ESC_ROW( KC_A   , KC_O   , KC_E   , KC_U   , KC_I   , KC_D   , KC_H   , KC_T   , KC_N   , KC_S , KC_SLSH), \
   STD_LSFT_ROW(KC_SCLN, KC_Q   , KC_J   , KC_K   , KC_X   , KC_B   , KC_M   , KC_W   , KC_V   , KC_Z),           \
-  BOTTOM_40_ROW
+  BOTTOM_ROW
 
 /* Game (Qwerty without one shot modifiers & tap dancing)
  * ,-----------------------------------------..-----------------------------------------.
@@ -221,7 +248,7 @@ qk_tap_dance_action_t tap_dance_actions[] = {
  * `-----------------------------------------''-----------------------------------------'
  */
 #define NUMPAD_LAYER \
-  KC_TAB , XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_NLCK, KC_P7  , KC_P8  , KC_P9  , KC_PMNS, KC_BSPC, \
+  KC_TAB , XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_NUM,  KC_P7  , KC_P8  , KC_P9  , KC_PMNS, KC_BSPC, \
   KC_ESC , XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_PAST, KC_P4  , KC_P5  , KC_P6  , KC_PPLS, KC_BSPC, \
   KC_LSFT, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, KC_PSLS, KC_P1  , KC_P2  , KC_P3  , KC_PENT, XXXXXXX, \
   TD_ADJ , TD_CTL , TD_ALT , TD_GUI , XXXXXXX, KC_SPC , KC_SPC , KC_P0  , KC_P0  , KC_PDOT, KC_PENT, XXXXXXX

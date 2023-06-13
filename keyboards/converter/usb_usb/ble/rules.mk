@@ -1,3 +1,7 @@
-BLUETOOTH = AdafruitBLE
-ADAFRUIT_BLE_ENABLE = yes
+# Processor frequency
 F_CPU = 8000000
+
+EXTRAKEY_ENABLE = no
+BLUETOOTH_ENABLE = yes
+BLUETOOTH_DRIVER = BluefruitLE
+LTO_ENABLE = yes
