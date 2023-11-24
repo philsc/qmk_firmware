@@ -157,6 +157,14 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             case VRSN:
                 SEND_STRING(QMK_KEYBOARD "/" QMK_KEYMAP " @ " QMK_VERSION);
                 return false;
+            case LT(MDIA, KC_SCLN):
+                // If the user is holding a modifier key, then we don't want to
+                // switch layers.
+                if ((get_mods() & (MOD_MASK_CTRL | MOD_MASK_SHIFT)) != 0) {
+                  register_code(KC_SCLN);
+                  return false;
+                }
+                return true;
         }
     }
     return true;
