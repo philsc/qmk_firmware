@@ -230,6 +230,10 @@ layer_state_t layer_state_set_user(layer_state_t state) {
     ergodox_right_led_2_off();
     ergodox_right_led_3_off();
 
+    // Limit the indicator LED brightness.
+    // Otherwise they are super bright.
+    ergodox_led_all_set(10);
+
     uint8_t layer = get_highest_layer(state);
     switch (layer) {
         case 0:
