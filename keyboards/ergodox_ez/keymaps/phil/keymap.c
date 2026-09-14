@@ -197,21 +197,35 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 };
 // clang-format on
 
+// Set when we bypassed the layer-tap and registered KC_SCLN ourselves, so
+// that the release unregisters it again.
+static bool scln_registered_as_key = false;
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
-    if (record->event.pressed) {
-        switch (keycode) {
-            case VRSN:
+    switch (keycode) {
+        case VRSN:
+            if (record->event.pressed) {
                 SEND_STRING(QMK_KEYBOARD "/" QMK_KEYMAP " @ " QMK_VERSION " built " QMK_BUILDDATE);
                 return false;
-            case LT(MDIA, KC_SCLN):
+            }
+            break;
+        case LT(MDIA, KC_SCLN):
+            if (record->event.pressed) {
                 // If the user is holding a modifier key, then we don't want to
                 // switch layers.
                 if ((get_mods() & (MOD_MASK_CTRL | MOD_MASK_SHIFT)) != 0) {
-                  register_code(KC_SCLN);
-                  return false;
+                    register_code(KC_SCLN);
+                    scln_registered_as_key = true;
+                    return false;
                 }
-                return true;
-        }
+            } else if (scln_registered_as_key) {
+                // The press never went through the layer-tap logic, so the
+                // release must not either. Otherwise KC_SCLN stays held.
+                unregister_code(KC_SCLN);
+                scln_registered_as_key = false;
+                return false;
+            }
+            break;
     }
     return true;
 }
