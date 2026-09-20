@@ -2,6 +2,8 @@
 #define QMK_KEYS_PER_SCAN 8
 #include "action_layer.h"
 #include "debug.h"
+#include "keymap_introspection.h"
+#include "raw_hid.h"
 #include "version.h"
 
 enum layers {
@@ -13,6 +15,7 @@ enum layers {
 
 enum custom_keycodes {
   VRSN = SAFE_RANGE,  // can always be here
+  CUSTOM_KEYCODE_END,  // keep last; sizes user_keycode_names below
 };
 
 // clang-format off
@@ -196,6 +199,131 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     ),
 };
 // clang-format on
+
+// Keymap dump over raw HID.
+//
+// The desktop asks the keyboard for its keymap so that whatever is shown always
+// matches the firmware that is flashed. Every packet is RAW_EPSIZE bytes; the
+// reply echoes the request's command byte, or KD_ERROR with the reason.
+//
+//   KD_INFO        [01]                   -> [01 proto rows cols layers 'K' 'M' 'P' n_user]
+//   KD_KEYCODES    [02 layer start count] -> [02 layer start count kc_lo kc_hi ...]
+//                                            (start/count index row * MATRIX_COLS + col)
+//   KD_LAYER_NAME  [03 layer]             -> [03 layer name...]
+//   KD_STATE       [04]                   -> [04 layer_state(4) default_layer_state(4) highest]
+//   KD_USER_NAME   [05 n]                 -> [05 n name...]   (name of SAFE_RANGE + n)
+//   anything else                         -> [FF cmd err]
+enum keymap_dump_command {
+    KD_INFO       = 0x01,
+    KD_KEYCODES   = 0x02,
+    KD_LAYER_NAME = 0x03,
+    KD_STATE      = 0x04,
+    KD_USER_NAME  = 0x05,
+    KD_ERROR      = 0xFF,
+};
+
+enum keymap_dump_error {
+    KD_ERR_UNKNOWN_CMD = 1,
+    KD_ERR_BAD_ARG     = 2,
+};
+
+#define KD_PROTOCOL 1
+#define KD_NAME_LEN 8
+#define KD_MAX_KEYCODES ((RAW_EPSIZE - 4) / 2)
+
+// The names must follow the enums above; the asserts keep them in sync.
+static const char PROGMEM layer_names[][KD_NAME_LEN] = {
+    [BASE] = "BASE",
+    [GAME] = "GAME",
+    [MDIA] = "MDIA",
+    [SYMB] = "SYMB",
+};
+_Static_assert(ARRAY_SIZE(layer_names) == ARRAY_SIZE(keymaps), "name every layer");
+
+static const char PROGMEM user_keycode_names[][KD_NAME_LEN] = {
+    [VRSN - SAFE_RANGE] = "VRSN",
+};
+_Static_assert(ARRAY_SIZE(user_keycode_names) == CUSTOM_KEYCODE_END - SAFE_RANGE, "name every custom keycode");
+
+static void kd_put_u32(uint8_t *p, uint32_t v) {
+    p[0] = v;
+    p[1] = v >> 8;
+    p[2] = v >> 16;
+    p[3] = v >> 24;
+}
+
+// Fills resp (zeroed, resp[0] already echoes the command) for the request in
+// req. Returns 0 or a keymap_dump_error.
+static uint8_t keymap_dump_handle(const uint8_t *req, uint8_t *resp) {
+    switch (req[0]) {
+        case KD_INFO:
+            resp[1] = KD_PROTOCOL;
+            resp[2] = MATRIX_ROWS;
+            resp[3] = MATRIX_COLS;
+            resp[4] = keymap_layer_count();
+            resp[5] = 'K';
+            resp[6] = 'M';
+            resp[7] = 'P';
+            resp[8] = ARRAY_SIZE(user_keycode_names);
+            return 0;
+
+        case KD_KEYCODES: {
+            uint8_t layer = req[1];
+            uint8_t start = req[2];
+            uint8_t count = req[3];
+            if (layer >= keymap_layer_count() || count > KD_MAX_KEYCODES || (uint16_t)start + count > MATRIX_ROWS * MATRIX_COLS) {
+                return KD_ERR_BAD_ARG;
+            }
+            resp[1] = layer;
+            resp[2] = start;
+            resp[3] = count;
+            for (uint8_t i = 0; i < count; i++) {
+                uint8_t  idx = start + i;
+                uint16_t kc  = keycode_at_keymap_location(layer, idx / MATRIX_COLS, idx % MATRIX_COLS);
+                resp[4 + 2 * i] = kc & 0xFF;
+                resp[5 + 2 * i] = kc >> 8;
+            }
+            return 0;
+        }
+
+        case KD_LAYER_NAME:
+            if (req[1] >= ARRAY_SIZE(layer_names)) {
+                return KD_ERR_BAD_ARG;
+            }
+            resp[1] = req[1];
+            memcpy_P(&resp[2], layer_names[req[1]], KD_NAME_LEN);
+            return 0;
+
+        case KD_STATE:
+            kd_put_u32(&resp[1], layer_state);
+            kd_put_u32(&resp[5], default_layer_state);
+            resp[9] = get_highest_layer(layer_state);
+            return 0;
+
+        case KD_USER_NAME:
+            if (req[1] >= ARRAY_SIZE(user_keycode_names)) {
+                return KD_ERR_BAD_ARG;
+            }
+            resp[1] = req[1];
+            memcpy_P(&resp[2], user_keycode_names[req[1]], KD_NAME_LEN);
+            return 0;
+    }
+    return KD_ERR_UNKNOWN_CMD;
+}
+
+void raw_hid_receive(uint8_t *data, uint8_t length) {
+    uint8_t resp[RAW_EPSIZE] = {0};
+    resp[0]     = data[0];
+    uint8_t err = keymap_dump_handle(data, resp);
+    if (err != 0) {
+        memset(resp, 0, sizeof(resp));
+        resp[0] = KD_ERROR;
+        resp[1] = data[0];
+        resp[2] = err;
+    }
+    // raw_hid_send requires exactly RAW_EPSIZE bytes.
+    raw_hid_send(resp, sizeof(resp));
+}
 
 // Set when we bypassed the layer-tap and registered KC_SCLN ourselves, so
 // that the release unregisters it again.
